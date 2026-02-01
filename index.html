@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SecurePass Pro - Générateur Sécurisé</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    
+    <style>
+        body { font-family: 'JetBrains Mono', monospace; background-color: #0f172a; }
+        .neon-border { box-shadow: 0 0 10px #10b981, 0 0 20px #10b981 inset; }
+        .neon-text { text-shadow: 0 0 5px #10b981; }
+        
+        /* Custom Checkbox */
+        .cyber-check { appearance: none; width: 20px; height: 20px; border: 2px solid #334155; background: #0f172a; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .cyber-check:checked { background: #10b981; border-color: #10b981; box-shadow: 0 0 8px #10b981; }
+        .cyber-check:checked::after { content: '✔'; color: black; font-size: 14px; font-weight: bold; }
+
+        input[type=range] { -webkit-appearance: none; background: transparent; }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 20px; width: 20px; background: #10b981; cursor: pointer; margin-top: -8px; box-shadow: 0 0 10px #10b981; border: 2px solid #fff; }
+        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; cursor: pointer; background: #334155; }
+    </style>
+</head>
+<body class="text-slate-200 h-screen flex flex-col items-center justify-center p-4">
+    <div id="root" class="w-full max-w-md"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        const Icons = {
+            Copy: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>,
+            Refresh: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>,
+            Shield: () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>,
+            Check: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="20 6 9 17 4 12"/></svg>
+        };
+
+        const App = () => {
+            const [password, setPassword] = useState('');
+            const [length, setLength] = useState(16);
+            const [copied, setCopied] = useState(false);
+            const [settings, setSettings] = useState({
+                upper: true,
+                lower: true,
+                numbers: true,
+                symbols: true
+            });
+            const [strength, setStrength] = useState({ score: 0, text: 'VIDE', color: 'bg-slate-700' });
+
+            const generate = () => {
+                const chars = {
+                    upper: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
+                    lower: 'abcdefghijklmnopqrstuvwxyz',
+                    numbers: '0123456789',
+                    symbols: '!@#$%^&*()_+~`|}{[]:;?><,./-='
+                };
+
+                let charset = '';
+                if (settings.upper) charset += chars.upper;
+                if (settings.lower) charset += chars.lower;
+                if (settings.numbers) charset += chars.numbers;
+                if (settings.symbols) charset += chars.symbols;
+
+                if (charset === '') return;
+
+                let pass = '';
+                for (let i = 0; i < length; i++) {
+                    pass += charset.charAt(Math.floor(Math.random() * charset.length));
+                }
+                setPassword(pass);
+                evaluateStrength(pass);
+                setCopied(false);
+            };
+
+            const evaluateStrength = (pass) => {
+                let score = 0;
+                if (pass.length > 8) score++;
+                if (pass.length > 12) score++;
+                if (/[A-Z]/.test(pass)) score++;
+                if (/[0-9]/.test(pass)) score++;
+                if (/[^A-Za-z0-9]/.test(pass)) score++;
+
+                const levels = [
+                    { text: 'TRÈS FAIBLE', color: 'bg-red-600' },
+                    { text: 'FAIBLE', color: 'bg-orange-500' },
+                    { text: 'MOYEN', color: 'bg-yellow-400' },
+                    { text: 'FORT', color: 'bg-green-400' },
+                    { text: 'IMPENETRABLE', color: 'bg-emerald-500 shadow-[0_0_15px_#10b981]' } // Max score 5
+                ];
+                
+                // Cap score at 4 (index)
+                let finalScore = Math.min(score, 4);
+                if(pass.length < 6) finalScore = 0;
+
+                setStrength({ score: finalScore, ...levels[finalScore] });
+            };
+
+            const copyToClipboard = () => {
+                navigator.clipboard.writeText(password);
+                setCopied(true);
+                setTimeout(() => setCopied(false), 2000);
+            };
+
+            // Generate on load
+            useEffect(() => { generate(); }, []);
+
+            // Generate when settings change
+            useEffect(() => { generate(); }, [length, settings]);
+
+            const toggle = (key) => {
+                setSettings(prev => {
+                    const next = { ...prev, [key]: !prev[key] };
+                    // Prevent unchecking all
+                    if (!Object.values(next).includes(true)) return prev;
+                    return next;
+                });
+            };
+
+            return (
+                <div className="w-full">
+                    <div className="text-center mb-8">
+                        <h1 className="text-3xl font-bold text-emerald-400 neon-text flex items-center justify-center gap-3">
+                            <Icons.Shield /> SecurePass PRO
+                        </h1>
+                        <p className="text-slate-500 text-xs mt-2 tracking-widest uppercase">Encryption Grade Password Generator</p>
+                    </div>
+
+                    {/* Display Box */}
+                    <div className="bg-slate-900 border-2 border-emerald-500/50 rounded-xl p-6 mb-6 relative group hover:border-emerald-400 transition-colors shadow-lg">
+                        <div className="text-2xl break-all font-bold text-white tracking-wide min-h-[40px] flex items-center">
+                            {password}
+                        </div>
+                        <button 
+                            onClick={copyToClipboard}
+                            className="absolute top-1/2 -translate-y-1/2 right-4 p-2 bg-slate-800 hover:bg-emerald-600 text-emerald-400 hover:text-white rounded-lg transition-all border border-slate-700"
+                            title="Copier"
+                        >
+                            {copied ? <Icons.Check /> : <Icons.Copy />}
+                        </button>
+                    </div>
+
+                    {/* Strength Bar */}
+                    <div className="bg-slate-800 p-4 rounded-xl border border-slate-700 mb-6">
+                        <div className="flex justify-between text-xs text-slate-400 mb-2 uppercase font-bold">
+                            <span>Robustesse</span>
+                            <span className={strength.color.includes('emerald') ? 'text-emerald-400 neon-text' : 'text-slate-200'}>{strength.text}</span>
+                        </div>
+                        <div className="flex gap-1 h-2">
+                            {[0, 1, 2, 3, 4].map(idx => (
+                                <div 
+                                    key={idx} 
+                                    className={`flex-1 rounded-full transition-all duration-500 ${idx <= strength.score ? strength.color : 'bg-slate-700'}`}
+                                ></div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Controls */}
+                    <div className="bg-slate-800 p-6 rounded-xl border border-slate-700 space-y-6">
+                        {/* Length Slider */}
+                        <div>
+                            <div className="flex justify-between items-center mb-4">
+                                <label className="text-slate-300 font-bold">Longueur</label>
+                                <span className="text-emerald-400 font-bold text-xl">{length}</span>
+                            </div>
+                            <input 
+                                type="range" 
+                                min="6" 
+                                max="32" 
+                                value={length} 
+                                onChange={(e) => setLength(Number(e.target.value))} 
+                                className="w-full"
+                            />
+                        </div>
+
+                        {/* Options */}
+                        <div className="grid grid-cols-2 gap-4">
+                            <label className="flex items-center gap-3 cursor-pointer group">
+                                <input type="checkbox" className="cyber-check" checked={settings.upper} onChange={() => toggle('upper')} />
+                                <span className="text-slate-300 group-hover:text-white transition-colors">Majuscules (A-Z)</span>
+                            </label>
+                            <label className="flex items-center gap-3 cursor-pointer group">
+                                <input type="checkbox" className="cyber-check" checked={settings.lower} onChange={() => toggle('lower')} />
+                                <span className="text-slate-300 group-hover:text-white transition-colors">Minuscules (a-z)</span>
+                            </label>
+                            <label className="flex items-center gap-3 cursor-pointer group">
+                                <input type="checkbox" className="cyber-check" checked={settings.numbers} onChange={() => toggle('numbers')} />
+                                <span className="text-slate-300 group-hover:text-white transition-colors">Chiffres (0-9)</span>
+                            </label>
+                            <label className="flex items-center gap-3 cursor-pointer group">
+                                <input type="checkbox" className="cyber-check" checked={settings.symbols} onChange={() => toggle('symbols')} />
+                                <span className="text-slate-300 group-hover:text-white transition-colors">Symboles (!@#)</span>
+                            </label>
+                        </div>
+
+                        {/* Generate Button */}
+                        <button 
+                            onClick={generate}
+                            className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-slate-900 font-bold text-lg rounded-lg shadow-[0_0_15px_rgba(16,185,129,0.4)] hover:shadow-[0_0_25px_rgba(16,185,129,0.6)] transition-all flex items-center justify-center gap-2"
+                        >
+                            <Icons.Refresh /> GÉNÉRER
+                        </button>
+                    </div>
+
+                    <div className="text-center mt-8 text-slate-600 text-xs">
+                        <p>100% Client-Side. Vos mots de passe ne quittent jamais votre navigateur.</p>
+                    </div>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
